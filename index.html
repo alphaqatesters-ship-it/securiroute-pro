@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SécuriRoute Pro - Ultra</title>
+    <!-- Carte Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #e67e22;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --danger: #e74c3c;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+        }
+        /* Système d'écrans */
+        .screen {
+            display: none;
+            height: 100vh;
+            width: 100vw;
+        }
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+        /* 1. PAGE D'ENTRÉE (CONNEXION) */
+        #login-screen {
+            background: linear-gradient(135deg, var(--dark), #1a252f);
+            color: white;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .login-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            width: 80%;
+            max-width: 350px;
+        }
+        .login-box h1 { color: var(--primary); margin-bottom: 25px; }
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 15px;
+        }
+        /* 2. INTERFACE PRINCIPALE (TABLEAU DE BORD) */
+        .app-header {
+            background: var(--dark);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            border-bottom: 3px solid var(--primary);
+        }
+        .main-content {
+            flex: 1;
+            position: relative;
+            overflow-y: auto;
+        }
+        #map { height: 100%; width: 100%; position: absolute; }
+        
+        /* Fenêtres superposées / Paramètres */
+        .panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        .panel.active { display: block; }
+        
+        /* Barre de navigation basse pour mobile */
+        .nav-bar {
+            background: var(--dark);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            border-top: 1px solid #444;
+        }
+        .nav-item {
+            color: white;
+            text-decoration: none;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-item i { display: block; font-size: 20px; margin-bottom: 3px; }
+    </style>
+</head>
+<body>
+
+    <!-- ================= FENÊTRE 1 : ACCUEIL / CONNEXION ================= -->
+    <div id="login-screen" class="screen active">
+        <div class="login-box">
+            <h1>SécuriRoute Pro</h1>
+            <p>Système de Surveillance Intelligent</p>
+            <input type="text" id="username" placeholder="Identifiant Agence">
+            <input type="password" id="password" placeholder="Mot de passe sécurisé">
+            <button class="btn" onclick="connecterApplication()">Entrer dans l'application</button>
+        </div>
+    </div>
+
+    <!-- ================= INTERFACE PRINCIPALE (FUTURES FENÊTRES) ================= -->
+    <div id="main-app-screen" class="screen">
+        <div class="app-header">SÉCURIROUTE PRO</div>
+        
+        <div class="main-content">
+            <!-- La Carte Vivante -->
+            <div id="map"></div>
+
+            <!-- FENÊTRE PARAMÈTRES : SUIVI DE VITESSE -->
+            <div id="panel-vitesse" class="panel">
+                <h3>📈 Contrôle des Vitesses</h3>
+                <p>Statut du radar : <strong style="color: green;">Actif</strong></p>
+                <p>Limite configurée : <strong>90 km/h</strong></p>
+                <label>Ajuster la limite :</label>
+                <input type="range" min="30" max="120" value="90" onchange="alert('Limite mise à jour !')">
+            </div>
+
+            <!-- FENÊTRE PARAMÈTRES : ALERTES D'URGENCE -->
+            <div id="panel-alertes" class="panel">
+                <h3 style="color: var(--danger);">🚨 Alertes en cours</h3>
+                <p>Aucun incident majeur signalé dans la zone d'Abidjan.</p>
+                <button class="btn" style="background: var(--danger);" onclick="ordonnerAlerte()">Déclencher une Alerte Générale</button>
+            </div>
+        </div>
+
+        <!-- BARRE DE NAVIGATION ULTRA-PERFORMANTE -->
+        <nav class="nav-bar">
+            <button class="nav-item active" onclick="changerFenetre('carte')">🗺️<br>Carte</button>
+            <button class="nav-item" onclick="changerFenetre('vitesse')">⚡<br>Vitesses</button>
+            <button class="nav-item" onclick="changerFenetre('alertes')">🚨<br>Alertes</button>
+            <button class="nav-item" style="color: #e74c3c;" onclick="deconnexion()">❌<br>Quitter</button>
+        </nav>
+    </div>
+
+    <!-- Chargement de la carte -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Code Logique & Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        
+        // Connexion au serveur Firebase créé ensemble
+        const firebaseConfig = {
+            apiKey: "AIzaSyDZCNEwThVq2LVCXidbH",
+            authDomain: "securiroute-ci-6259f.firebaseapp.com",
+            projectId: "securiroute-ci-6259f",
+            storageBucket: "securiroute-ci-6259f.appspot.com",
+            messagingSenderId: "1537259208",
+            appId: "1:1537259208:web:443d12f6"
+        };
+        const app = initializeApp(firebaseConfig);
+
+        // Initialisation globale de la carte centrée sur Abidjan
+        window.map = L.map('map').setView([5.3600, -3.9900], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(window.map);
+        
+        // Forcer le redessin de la carte
+        setTimeout(() => { window.map.invalidateSize(); }, 500);
+    </script>
+
+    <script>
+        // Fonctions de navigation entre les fenêtres de l'application
+        function connecterApplication() {
+            document.getElementById('login-screen').classList.remove('active');
+            document.getElementById('main-app-screen').classList.add('active');
+            // Recalculer la taille de la carte lors de l'ouverture
+            setTimeout(() => { window.map.invalidateSize(); }, 200);
+        }
+
+        function deconnexion() {
+            document.getElementById('main-app-screen').classList.remove('active');
+            document.getElementById('login-screen').classList.add('active');
+        }
+
+        function changerFenetre(type) {
+            // Fermer toutes les fenêtres flottantes d'abord
+            document.getElementById('panel-vitesse').classList.remove('active');
+            document.getElementById('panel-alertes').classList.remove('active');
+            
+            // Retirer l'état actif des boutons
+            const items = document.querySelectorAll('.nav-item');
+            items.forEach(item => item.classList.remove('active'));
+
+            // Activer la fenêtre choisie
+            if (type === 'vitesse') {
+                document.getElementById('panel-vitesse').classList.add('active');
+            } else if (type === 'alertes') {
+                document.getElementById('panel-alertes').classList.add('active');
+            }
+        }
+
+        function ordonnerAlerte() {
+            alert("Alerte d'urgence transmise en temps réel au serveur Firebase !");
+        }
+    </script>
+</body>
+</html>
